@@ -27,7 +27,7 @@ func heartbeat (w http.ResponseWriter, r *http.Request){
 /*
 * Implementation for MySQL backend
 */
-func queryMySQL(userid string tweettime string) (response string){
+func queryMySQL(userid string, tweettime string) (response string){
 	var tweet_id uint64	
 	var response="No tweet found"
 	//Find tweet_id for given userid and tweettime		
