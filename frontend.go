@@ -29,7 +29,7 @@ func heartbeat (w http.ResponseWriter, r *http.Request){
 */
 func queryMySQL(userId string, tweetTime string) (response string){
 	var tweetId uint64	
-	var response="No tweet found"
+	response="No tweet found"
 	//Find tweet_id for given userid and tweettime		
 	rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userId+"' and created_at='"+tweetTime+"';")	
 	
