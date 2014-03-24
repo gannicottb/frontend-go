@@ -34,7 +34,7 @@ func queryMySQL(userId string, tweetTime string) (response string){
 	
 	if err != nil {
 		log.Print(err)	
-		response="Error with MySQL Query for"+userID+" and "+tweetTime	
+		response="Error with MySQL Query for"+userId+" and "+tweetTime	
 	}else{	
 		//Grab the data from the  query
 		for rows.Next(){
