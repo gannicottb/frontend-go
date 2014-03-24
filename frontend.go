@@ -28,13 +28,13 @@ func heartbeat (w http.ResponseWriter, r *http.Request){
 * Implementation for MySQL backend
 */
 func queryMySQL(userId string, tweetTime string) (response string){
-	var tweetId uint64	
-	response="No tweet found"
+	var tweetId uint64		
 	//Find tweet_id for given userid and tweettime		
 	rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userId+"' and created_at='"+tweetTime+"';")	
 	
 	if err != nil {
-		log.Print(err)		
+		log.Print(err)	
+		response="Error with MySQL Query for"+userID+" and "+tweetTime	
 	}else{	
 		//Grab the data from the  query
 		for rows.Next(){
