@@ -24,18 +24,13 @@ func heartbeat (w http.ResponseWriter, r *http.Request){
         fmt.Fprintf(w, TEAM_ID+","+AWS_ACCOUNT_ID+","+timeNow)
 }
 
-func findTweet (w http.ResponseWriter, r *http.Request){
-	//Extract values from URL
-	values := r.URL.Query()
-	userid := values["userid"]
-	tweettime := values["tweet_time"]	
-	fmt.Println("Request with user_id="+userid[0]+", tweet_time="+tweettime[0])
-	
-	//Begin response
-	resp := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"
-	var tweet_id uint64
-	
-	//Do query		
+/*
+* Implementation for MySQL backend
+*/
+func queryMySQL(userid string tweettime string) (response string){
+	var tweet_id uint64	
+	var response="No tweet found"
+	//Find tweet_id for given userid and tweettime		
 	rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userid[0]+"' and created_at='"+tweettime[0]+"';")	
 	
 	if err != nil {
@@ -45,14 +40,53 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 		for rows.Next(){
 			err = rows.Scan(&tweet_id)
 			if err != nil {
-				log.Fatal(err)
-			}				
-			resp += (strconv.FormatUint(tweet_id,10)+"\n")
-		}
-		fmt.Println(resp)
-	}
+				log.Print(err)				
+			}else{//no error, convert the tweet_id into a string and concat to resp
+				response += (strconv.FormatUint(tweet_id,10)+"\n")
+			}
+		}				
+	}	
+	return response
+}
+
+/*
+func queryHBase(userid string tweetime string) (){
+
+}
+*/
+
+func findTweet (w http.ResponseWriter, r *http.Request){
+	//Extract values from URL
+	values := r.URL.Query()
+	userid := values["userid"]
+	tweettime := values["tweet_time"]	
+	fmt.Println("Request with userid="+userid[0]+", tweet_time="+tweettime[0])
+	
+	//Begin response
+	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"
+
+	// var tweet_id uint64	
+	// //Do query		
+	// rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userid[0]+"' and created_at='"+tweettime[0]+"';")	
+	
+	// if err != nil {
+	// 	log.Print(err)		
+	// }else{	
+	// 	//Grab the data from the  query
+	// 	for rows.Next(){
+	// 		err = rows.Scan(&tweet_id)
+	// 		if err != nil {
+	// 			log.Fatal(err)
+	// 		}				
+	// 		resp += (strconv.FormatUint(tweet_id,10)+"\n")
+	// 	}
+	// 	fmt.Println(resp)
+	// }
+	response += queryMySQL(userid, tweettime)
+	//resp += queryHBase(userid, tweettime)
 	//Send response
-	fmt.Fprintf(w, resp)
+	fmt.Println(response)//Print to console what we're returning
+	fmt.Fprintf(w, response)
 }
 
 func main(){
@@ -64,9 +98,9 @@ func main(){
 	}else{
 		fmt.Println("Database open!")
 	}
-    	http.HandleFunc("/q1", heartbeat)
+  http.HandleFunc("/q1", heartbeat)
 	http.HandleFunc("/q2", findTweet)
-    	log.Fatal(http.ListenAndServe(":8080", nil))
+  log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 
