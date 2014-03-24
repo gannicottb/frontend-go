@@ -12,7 +12,7 @@ import(
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
 
-var dsn = "cloud9:gradproject@tcp(15619projectlb-1895861859.us-east-1.elb.amazonaws.com:3306)/TWEET_DB?parseTime=true"
+var dsn = "cloud9:gradproject@tcp(ec2-54-198-107-252.compute-1.amazonaws.com:3306)/TWEET_DB?parseTime=true"
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
