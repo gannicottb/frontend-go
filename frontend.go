@@ -27,24 +27,28 @@ func heartbeat (w http.ResponseWriter, r *http.Request){
 /*
 * Implementation for MySQL backend
 */
-func queryMySQL(userid string, tweettime string) (response string){
-	var tweet_id uint64	
+func queryMySQL(userId string, tweetTime string) (response string){
+	var tweetId uint64	
 	var response="No tweet found"
 	//Find tweet_id for given userid and tweettime		
-	rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userid[0]+"' and created_at='"+tweettime[0]+"';")	
+	rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userId+"' and created_at='"+tweetTime+"';")	
 	
 	if err != nil {
 		log.Print(err)		
 	}else{	
 		//Grab the data from the  query
 		for rows.Next(){
-			err = rows.Scan(&tweet_id)
+			err = rows.Scan(&tweetId)
 			if err != nil {
 				log.Print(err)				
 			}else{//no error, convert the tweet_id into a string and concat to resp
-				response += (strconv.FormatUint(tweet_id,10)+"\n")
+				response += (strconv.FormatUint(tweetId,10)+"\n")
 			}
-		}				
+		}
+		//Catch lingering errors
+		if err := rows.Err(); err != nil {
+            log.Print(err)	
+        }			
 	}	
 	return response
 }
@@ -58,9 +62,9 @@ func queryHBase(userid string tweetime string) (){
 func findTweet (w http.ResponseWriter, r *http.Request){
 	//Extract values from URL
 	values := r.URL.Query()
-	userid := values["userid"]
-	tweettime := values["tweet_time"]	
-	fmt.Println("Request with userid="+userid[0]+", tweet_time="+tweettime[0])
+	userId := values["userid"][0]
+	tweetTime := values["tweet_time"][0]
+	fmt.Println("Request with userid="+userId+", tweet_time="+tweetTime)
 	
 	//Begin response
 	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"
@@ -82,7 +86,7 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 	// 	}
 	// 	fmt.Println(resp)
 	// }
-	response += queryMySQL(userid, tweettime)
+	response += queryMySQL(userId, tweetTime)
 	//resp += queryHBase(userid, tweettime)
 	//Send response
 	fmt.Println(response)//Print to console what we're returning
@@ -98,9 +102,9 @@ func main(){
 	}else{
 		fmt.Println("Database open!")
 	}
-  http.HandleFunc("/q1", heartbeat)
+  	http.HandleFunc("/q1", heartbeat)
 	http.HandleFunc("/q2", findTweet)
-  log.Fatal(http.ListenAndServe(":8080", nil))
+  	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 
