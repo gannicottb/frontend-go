@@ -13,9 +13,9 @@ import(
 )
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
-
+//http://ec2-54-85-193-234.compute-1.amazonaws.com:8080/tweets/12002667192014-01-22%2012:21:45/about_tweet
 var dsn = "cloud9:gradproject@tcp(ec2-54-198-107-252.compute-1.amazonaws.com:3306)/TWEET_DB?parseTime=true"
-var hbaseServer = "http://ec2-54-85-139-66.compute-1.amazonaws.com:8080"
+var hbaseServer = "http://ec2-54-85-193-234.compute-1.amazonaws.com:8080"
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
@@ -60,8 +60,11 @@ func queryMySQL(userId string, tweetTime string) (response string){
 
  func queryHBase(userId string, tweetTime string) (response string){
 	//userId = "1200266719"
+	//tweetTime= 2014-01-22 12:21:45
+	// 
  	//Send GET request to HBase Stargate server
- 	res, err := http.Get(hbaseServer+"/tweets/"+userId+tweetTime+"/about_tweet")
+ 	res, err := http.Get(hbaseServer+"/tweets/"+userId+tweetTime+",/about_tweet")
+
 	if err != nil {
  		log.Print(err) 
  		response = "Error with HBase GET request for "+userId+" and "+tweetTime
