@@ -8,13 +8,15 @@ import(
  "log"
  "time"
  "strconv"
- //"io/ioutil"
+ "strings"
+ "io/ioutil"
+ "net/url"
 )
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
 
 var dsn = "cloud9:gradproject@tcp(ec2-54-198-107-252.compute-1.amazonaws.com:3306)/TWEET_DB?parseTime=true"
-var hbaseServer = "54.85.139.66:8080"
+var hbaseServer = "http://ec2-54-85-139-66.compute-1.amazonaws.com:8080"
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
@@ -57,19 +59,32 @@ func queryMySQL(userId string, tweetTime string) (response string){
 * Implementation for HBase backend
 */
 
-// func queryHBase(userId string tweetTime string) (response string){
-// 	hbaseTweetQuery = hbaseServer+"/table/row/column/blah"
-// 	res, err := http.Get(hbaseTweetQuery)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	response, err := ioutil.ReadAll(res.Body)
-// 	res.Body.Close()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	return response
-// }
+ func queryHBase(userId string, tweetTime string) (response string){
+	// 	hbaseTweetQuery = hbaseServer+"/table/row/column/blah"
+ 	//userId = "1200266719"
+
+ 	escaped, err := url.QueryUnescape(tweetTime)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ 	tweetTime = escaped
+ 	//tweetTime = "2014-01-22 12:21:45"
+ 	fmt.Println(tweetTime)
+ 	res, err := http.Get(hbaseServer+"/tweets/"+userId+tweetTime+"/about_tweet")
+	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ 	tweetIds, err := ioutil.ReadAll(res.Body)
+ 	res.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	results := strings.Split(string(tweetIds), ";")
+	for _, i := range results{
+		response += i
+	}
+	return response
+}
 
 
 func findTweet (w http.ResponseWriter, r *http.Request){
@@ -83,9 +98,10 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"	
 
 	//Query MySQL
-	response += queryMySQL(userId, tweetTime)	
+	//response += queryMySQL(userId, tweetTime)	
+	
 	//Query HBase
-	//response += queryHBase(userId, tweetTime)
+	response += queryHBase(userId, tweetTime)
 
 	//Send response
 	fmt.Println(response)//Print to console what we're returning
@@ -93,15 +109,15 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 }
 
 func main(){
-	fmt.Printf("Starting up the frontend now...")
+	fmt.Println("Starting up the frontend now...")
 
-	var err error
-	db, err = sql.Open("mysql", dsn);
-	if err != nil {
-		log.Fatal(err)
-	}else{
-		fmt.Println("Database open!")
-	}
+	// var err error
+	// db, err = sql.Open("mysql", dsn);
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }else{
+	// 	fmt.Println("Database open!")
+	// }
 
   	http.HandleFunc("/q1", heartbeat)
 	http.HandleFunc("/q2", findTweet)
