@@ -9,8 +9,7 @@ import(
  "time"
  "strconv"
  "strings"
- "io/ioutil"
- "net/url"
+ "io/ioutil" 
 )
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
@@ -21,10 +20,10 @@ var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
 
-func heartbeat (w http.ResponseWriter, r *http.Request){
+func heartbeat (w http.ResponseWriter, r *http.Request){	
 	timeNow := time.Now().Format(layout)
-	fmt.Println("Heartbeat at "+timeNow)
-        fmt.Fprintf(w, TEAM_ID+","+AWS_ACCOUNT_ID+","+timeNow)
+	fmt.Println("Q1 HEARTBEAT at "+timeNow)
+    fmt.Fprintf(w, TEAM_ID+","+AWS_ACCOUNT_ID+","+timeNow)
 }
 
 /*
@@ -60,28 +59,24 @@ func queryMySQL(userId string, tweetTime string) (response string){
 */
 
  func queryHBase(userId string, tweetTime string) (response string){
-	// 	hbaseTweetQuery = hbaseServer+"/table/row/column/blah"
- 	//userId = "1200266719"
-
- 	escaped, err := url.QueryUnescape(tweetTime)
- 	if err != nil {
- 		log.Fatal(err)
- 	}
- 	tweetTime = escaped
- 	//tweetTime = "2014-01-22 12:21:45"
- 	fmt.Println(tweetTime)
+	//userId = "1200266719"
+ 	//Send GET request to HBase Stargate server
  	res, err := http.Get(hbaseServer+"/tweets/"+userId+tweetTime+"/about_tweet")
 	if err != nil {
- 		log.Fatal(err)
- 	}
+ 		log.Print(err) 
+ 		response = "Error with HBase GET request for "+userId+" and "+tweetTime
+ 		return response		
+ 	}// No error, read the response into tweetIds
  	tweetIds, err := ioutil.ReadAll(res.Body)
  	res.Body.Close()
 	if err != nil {
-		log.Fatal(err)
-	}
+		log.Print(err)
+		response = "Error with reading HBase response for "+userId+" and "+tweetTime
+		return response
+	}// No error, split the tweetIds on ";" and concatenate to response
 	results := strings.Split(string(tweetIds), ";")
-	for _, i := range results{
-		response += i
+	for _, id := range results{
+		response += (id+"\n")
 	}
 	return response
 }
@@ -92,7 +87,7 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 	values := r.URL.Query()
 	userId := values["userid"][0]
 	tweetTime := values["tweet_time"][0]
-	fmt.Println("Request with userid="+userId+", tweet_time="+tweetTime)
+	fmt.Println("Q2 REQUEST: with userid="+userId+", tweet_time="+tweetTime)
 	
 	//Begin response
 	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"	
@@ -104,7 +99,7 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 	response += queryHBase(userId, tweetTime)
 
 	//Send response
-	fmt.Println(response)//Print to console what we're returning
+	fmt.Println("Q2 RESPONSE:"+response)//Print to console what we're returning
 	fmt.Fprintf(w, response)
 }
 
@@ -117,8 +112,7 @@ func main(){
 	// 	log.Fatal(err)
 	// }else{
 	// 	fmt.Println("Database open!")
-	// }
-
+	// }	
   	http.HandleFunc("/q1", heartbeat)
 	http.HandleFunc("/q2", findTweet)
   	log.Fatal(http.ListenAndServe(":8080", nil))
