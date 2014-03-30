@@ -2,7 +2,7 @@ package main
 
 import(
  "database/sql"
- _"mysql-1.0"
+ _"github.com/go-sql-driver/mysql"
  "net/http" 
  "fmt"
  "log"
@@ -118,7 +118,7 @@ func main(){
 	// }	
   	http.HandleFunc("/q1", heartbeat)
 	http.HandleFunc("/q2", findTweet)
-  	log.Fatal(http.ListenAndServe(":8080", nil))
+  	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
 
