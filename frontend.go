@@ -19,11 +19,14 @@ var hbaseServer = "http://ec2-54-85-193-234.compute-1.amazonaws.com:8080"
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
+const header = TEAM_ID+","+AWS_ACCOUNT_ID+"\n"
+const mysql = 0
+const hbase = 1
 
-func heartbeat (w http.ResponseWriter, r *http.Request){	
-	timeNow := time.Now().Format(layout)
-	fmt.Println("Q1 HEARTBEAT at "+timeNow)
-    fmt.Fprintf(w, TEAM_ID+","+AWS_ACCOUNT_ID+","+timeNow)
+func q1(w http.ResponseWriter, r *http.Request){	
+	timeNow := time.Now().Format(layout)	
+  fmt.Fprintf(w, TEAM_ID+","+AWS_ACCOUNT_ID+","+timeNow)
+  fmt.Println("Q1 HEARTBEAT at "+timeNow)
 }
 
 /*
@@ -50,7 +53,7 @@ func queryMySQL(userId string, tweetTime string) (response string){
 		//Catch lingering errors
 		if err := rows.Err(); err != nil {
             log.Print(err)	
-        }			
+    }			
 	}	
 	return response
 }
@@ -84,8 +87,12 @@ func queryMySQL(userId string, tweetTime string) (response string){
 	return response
 }
 
+func q2Query(userId string, tweetTime string, backend int){
+	
+}
 
-func findTweet (w http.ResponseWriter, r *http.Request){
+
+func q2(w http.ResponseWriter, r *http.Request){
 	//Extract values from URL
 	values := r.URL.Query()
 	userId := values["userid"][0]
@@ -99,11 +106,26 @@ func findTweet (w http.ResponseWriter, r *http.Request){
 	//response += queryMySQL(userId, tweetTime)	
 	
 	//Query HBase
-	response += queryHBase(userId, tweetTime)
+	//response += queryHBase(userId, tweetTime)
+
+	response += q2Query(userId, tweetTime, mysql)
 
 	//Send response
 	fmt.Println("Q2 RESPONSE:"+response)//Print to console what we're returning
 	fmt.Fprintf(w, response)
+}
+
+func q3(w http.ResponseWriter, r *http.Request){
+		userId := r.URL.Query()["userid"][0]
+
+		fmt.Println("Q3 REQUEST: with userid="+userId)
+
+		response := header
+		
+		response += q3Query(userId, mysql)
+
+		fmt.Fprintf(w, response)
+		fmt.Println("Q3 REQUEST:"+response)
 }
 
 func main(){
@@ -116,9 +138,10 @@ func main(){
 	// }else{
 	// 	fmt.Println("Database open!")
 	// }	
-  	http.HandleFunc("/q1", heartbeat)
-	http.HandleFunc("/q2", findTweet)
-  	log.Fatal(http.ListenAndServe(":80", nil))
+  http.HandleFunc("/q1", q1)
+	http.HandleFunc("/q2", q2)
+	http.HandleFunc("/q3", q3)
+  log.Fatal(http.ListenAndServe(":80", nil))
 }
 
 
