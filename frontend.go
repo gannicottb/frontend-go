@@ -14,14 +14,20 @@ import(
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
 //http://ec2-54-85-193-234.compute-1.amazonaws.com:8080/tweets/12002667192014-01-22%2012:21:45/about_tweet
-var dsn = "cloud9:gradproject@tcp(ec2-54-198-107-252.compute-1.amazonaws.com:3306)/TWEET_DB?parseTime=true"
+
+//Test for Q3:
+//1003121510
+//1003274923
+//1005208489
+//1005468367
+var dsn = "cloud9:gradproject@tcp(ec2-174-129-143-212.compute-1.amazonaws.com:3306)/TWEET_DB?parseTime=true"
 var hbaseServer = "http://ec2-54-85-193-234.compute-1.amazonaws.com:8080"
 
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
 //WHICH BACKEND AM I USING???
-const mysql = false
+const mysql = true
 //???????????????????????????
 
 func q1(w http.ResponseWriter, r *http.Request){	
@@ -71,6 +77,9 @@ func main(){
 		db, err = sql.Open("mysql", dsn);
 		if err != nil {
 			log.Fatal(err)
+		}
+		if err = db.Ping(); err != nil { 
+			log.Fatal(err)			
 		}else{
 			fmt.Println("Database open!")
 		}	
@@ -123,7 +132,7 @@ func q2mysql(userId string, tweetTime string) (response string){
 */
  func q2hbase(userId string, tweetTime string) (response string){	
  	//Send GET request to HBase Stargate server
- 	res, err := http.Get(hbaseServer+"/tweets/"+userId+tweetTime+",/about_tweet")
+ 	res, err := http.Get(hbaseServer+"/tweets_q2/"+userId+tweetTime+",/about_tweet")
 
 	if err != nil {
  		log.Print(err) 
@@ -145,9 +154,48 @@ func q2mysql(userId string, tweetTime string) (response string){
 }
 
 func q3mysql(userId string) (response string){
-	return "Q3 MySQL backend not implemented yet"
+	var srcId uint64	
+	rows, err := db.Query("SELECT src_uid FROM retweets WHERE target_uid='"+userId+"' ORDER BY src_uid;")	
+	
+	if err != nil {
+		log.Print(err)	
+		response="Error with MySQL Query for"+userId
+	}else{	
+		//Grab the data from the  query
+		for rows.Next(){
+			err = rows.Scan(&srcId)
+			if err != nil {
+				log.Print(err)				
+			}else{//no error, convert the tweet_id into a string and concat to resp				
+				response += (strconv.FormatUint(srcId,10)+"\n")
+			}
+		}
+		//Catch lingering errors
+		if err := rows.Err(); err != nil {
+            log.Print(err)	
+    	}			
+	}	
+	return response
 }
 
 func q3hbase(userId string) (response string){
-	return "Q3 HBase backend not implemented yet"
+	//Send GET request to HBase Stargate server
+ 	res, err := http.Get(hbaseServer+"/tweets_q3/"+userId+"/about_tweet:retweets_userID")
+
+	if err != nil {
+ 		log.Print(err) 
+ 		return "Error with HBase GET request for "+userId 			
+ 	}// No error, read the response into tweetIds
+ 	userIds, err := ioutil.ReadAll(res.Body)
+ 	res.Body.Close()
+	if err != nil {
+		log.Print(err)
+		response = "Error with reading HBase response for "+userId
+		return response
+	}// No error, split the tweetIds on ";" and concatenate to response
+	results := strings.Split(string(userIds), ";")
+	for _, id := range results{
+		response += (id+"\n")
+	}
+	return response
 }
