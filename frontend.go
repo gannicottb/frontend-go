@@ -4,6 +4,7 @@ import(
  "database/sql"
  _"github.com/go-sql-driver/mysql"
  "net/http" 
+ "net/url"
  "fmt"
  "log"
  "time"
@@ -42,7 +43,10 @@ func q2(w http.ResponseWriter, r *http.Request){
 	//Extract values from URL
 	values := r.URL.Query()
 	userId := values["userid"][0]
-	tweetTime := URL.QueryUnescape(values["tweet_time"][0])
+	tweetTime, err := url.QueryUnescape(values["tweet_time"][0])
+	if err != nil{
+		log.Print(err)
+	}
 	fmt.Println("Q2 REQUEST: with userid="+userId+", tweet_time="+tweetTime)	
 	//Begin response
 	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"	
@@ -95,6 +99,7 @@ func main(){
 	}else{
 		q2hbaseServer = "http://"+q2hbaseVar+":8080"
 		q3hbaseServer = "http://"+q3hbaseVar+":8080"
+		fmt.Println("Q2 and Q3 hbase servers registered!")
 	}
   	http.HandleFunc("/q1", q1)
 	http.HandleFunc("/q2", q2)
@@ -145,7 +150,7 @@ func q2mysql(userId string, tweetTime string) (response string){
  func q2hbase(userId string, tweetTime string) (response string){	
  	//Send GET request to HBase Stargate server
  	res, err := http.Get(q2hbaseServer+"/tweets_q2/"+userId+tweetTime+",/about_tweet")
-
+ 	log.Print(res.Request.URL.String())
 	if err != nil {
  		log.Print(err) 
  		response = err.Error()
