@@ -60,6 +60,8 @@ func q2(w http.ResponseWriter, r *http.Request){
 		response += q2hbase(userId, tweetTime)
 	}	
 	//Send response
+	w.Header().Set("Content-Type", "text/plain")
+    w.Header().Set("Content-Length", strconv.Itoa(len(response)))	
 	fmt.Fprintf(w, response)
 	fmt.Println("Q2 RESPONSE:"+response)	
 }
@@ -72,7 +74,9 @@ func q3(w http.ResponseWriter, r *http.Request){
 		response += q3mysql(userId)
 	}else{
 		response += q3hbase(userId)
-	}			
+	}
+	w.Header().Set("Content-Type", "text/plain")
+    w.Header().Set("Content-Length", strconv.Itoa(len(response)))			
 	fmt.Fprintf(w, response)
 	fmt.Println("Q3 RESPONSE:"+response)
 }
