@@ -1,19 +1,21 @@
 package main
 
-import(
- "database/sql"
- _"github.com/go-sql-driver/mysql"
- "net/http" 
- "net/url"
- "fmt"
- "log"
- "time"
- "strconv"
- "strings"
- "io/ioutil" 
- "os"
- "runtime"
+import (
+	"database/sql"
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/pmylund/go-cache"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
 )
+
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
 //http://ec2-54-85-193-234.compute-1.amazonaws.com:8080/tweets/12002667192014-01-22%2012:21:45/about_tweet
@@ -28,200 +30,230 @@ var dsnFront = "cloud9:gradproject@tcp("
 var dsnBack = ":3306)/TWEET_DB?parseTime=true"
 var q2hbaseServer, q3hbaseServer string
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
-var db *sql.DB 
+var db *sql.DB
+var c *cache.Cache
+
+const CACHE_EXPIRATION = 10
+const CACHE_PURGE_INTERVAL = 60
 const layout = "2006-01-02 15:04:05"
+
 //WHICH BACKEND AM I USING???
 var mysql = false
+
 //???????????????????????????
 
-func q1(w http.ResponseWriter, r *http.Request){	
-	//timeNow := time.Now().Format(layout)
-	result := TEAM_ID+","+AWS_ACCOUNT_ID+","+time.Now().Format(layout)
+func q1(w http.ResponseWriter, r *http.Request) {
+	result := TEAM_ID + "," + AWS_ACCOUNT_ID + "," + time.Now().Format(layout)
 	w.Header().Set("Content-Type", "text/plain")
-    w.Header().Set("Content-Length", strconv.Itoa(len(result)))	
-  	fmt.Fprintf(w, result)
-  	//fmt.Println("Q1 HEARTBEAT at "+timeNow)
+	w.Header().Set("Content-Length", strconv.Itoa(len(result)))
+	fmt.Fprintf(w, result)
+	fmt.Println("Q1 HEARTBEAT " + result)
 }
 
-func q2(w http.ResponseWriter, r *http.Request){
+func q2(w http.ResponseWriter, r *http.Request) {
+	var response string
 	//Extract values from URL
 	values := r.URL.Query()
 	userId := values["userid"][0]
 	tweetTime, err := url.QueryUnescape(values["tweet_time"][0])
-	if err != nil{
+	if err != nil {
 		log.Print(err)
 	}
-	fmt.Println("Q2 REQUEST: with userid="+userId+", tweet_time="+tweetTime)	
-	//Begin response
-	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"	
-	if mysql {
-		response += q2mysql(userId, tweetTime)
-	}else{
-		response += q2hbase(userId, tweetTime)
-	}	
+	fmt.Println("Q2 REQUEST: with userid=" + userId + ", tweet_time=" + tweetTime)
+
+	//Check the cache to see if we already have the response
+	result, found := c.Get(userId + tweetTime)
+	if found { // Cache hit! Use cached value
+		response = result.(string)
+	} else { // Cache miss! Query as usual and then cache
+		response = TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"
+		if mysql {
+			response += q2mysql(userId, tweetTime)
+		} else {
+			response += q2hbase(userId, tweetTime)
+		}
+		c.Set(userId+tweetTime, response, 0)
+	}
+
 	//Send response
 	w.Header().Set("Content-Type", "text/plain")
-    w.Header().Set("Content-Length", strconv.Itoa(len(response)))	
+	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 	fmt.Fprintf(w, response)
-	fmt.Println("Q2 RESPONSE:"+response)	
+	fmt.Println("Q2 RESPONSE:" + response)
 }
 
-func q3(w http.ResponseWriter, r *http.Request){
+func q3(w http.ResponseWriter, r *http.Request) {
+	var response string
+	//Extract userId from the request
 	userId := r.URL.Query()["userid"][0]
-	fmt.Println("Q3 REQUEST: with userid="+userId)
-	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"	
-	if mysql {
-		response += q3mysql(userId)
-	}else{
-		response += q3hbase(userId)
+	fmt.Println("Q3 REQUEST: with userid=" + userId)
+
+	//Check the cache to see if we already have the response
+	result, found := c.Get(userId)
+	if found { //Cache hit! Use cached value
+		response = result.(string)
+	} else { //Cache miss! Query as usual and then cache
+		response = TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"
+		if mysql {
+			response += q3mysql(userId)
+		} else {
+			response += q3hbase(userId)
+		}
+		c.Set(userId, response, 0)
 	}
+
 	w.Header().Set("Content-Type", "text/plain")
-    w.Header().Set("Content-Length", strconv.Itoa(len(response)))			
+	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 	fmt.Fprintf(w, response)
-	fmt.Println("Q3 RESPONSE:"+response)
+	fmt.Println("Q3 RESPONSE:" + response)
 }
+
 /*
 * The server attaches handlers and listens for REST requests on port 80
-*/
-func main(){
+ */
+func main() {
+	//Use as many cores as Go can find on the machine
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	//Create a cache with a 10 minute expiration date that purges expired items every 60 seconds
+	c = cache.New(CACHE_EXPIRATION*time.Minute, CACHE_PURGE_INTERVAL*time.Second)
+	//Grab server addresses from environment variables
 	q2hbaseVar := os.Getenv("Q2HBASE_SERVER")
 	q3hbaseVar := os.Getenv("Q3HBASE_SERVER")
 	mysqlVar := os.Getenv("MYSQL_SERVER")
-	if mysqlVar != ""{
+	if mysqlVar != "" {
 		mysql = true
 	}
-	
-	fmt.Println("Frontend starting using "+backend()+" for the backend...")
+
+	fmt.Println("Frontend starting using " + backend() + " for the backend...")
 	if mysql {
-		dsn := dsnFront+mysqlVar+dsnBack 
+		dsn := dsnFront + mysqlVar + dsnBack
 		var err error
-		db, err = sql.Open("mysql", dsn);
+		db, err = sql.Open("mysql", dsn)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(err) //Couldn't open the database
 		}
-		if err = db.Ping(); err != nil { 
-			log.Fatal(err)			
-		}else{
-			fmt.Println("Database open!")
-		}	
-	}else{
-		q2hbaseServer = "http://"+q2hbaseVar+":8080"
-		q3hbaseServer = "http://"+q3hbaseVar+":8080"
+		if err = db.Ping(); err != nil {
+			log.Fatal(err) //Couldn't ping the database
+		} else {
+			fmt.Println("Database open!") //Ok, good to go
+		}
+	} else {
+		q2hbaseServer = "http://" + q2hbaseVar + ":8080"
+		q3hbaseServer = "http://" + q3hbaseVar + ":8080"
 		fmt.Println("Q2 and Q3 hbase servers registered!")
 	}
-  	http.HandleFunc("/q1", q1)
+	http.HandleFunc("/q1", q1)
 	http.HandleFunc("/q2", q2)
 	http.HandleFunc("/q3", q3)
-  	log.Fatal(http.ListenAndServe(":80", nil))
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
-func backend()(str string){
-	if mysql{
+func backend() (str string) {
+	if mysql {
 		return "MySQL"
-	}else{
+	} else {
 		return "HBase"
 	}
 }
 
 /*
 * Implementation for Q2 MySQL backend
-*/
-func q2mysql(userId string, tweetTime string) (response string){
-	var tweetId uint64		
-	//Find tweet_id for given userid and tweettime		
-	rows, err := db.Query("SELECT id FROM tweets WHERE userid='"+userId+"' and created_at='"+tweetTime+"' ORDER BY id;")	
-	
+ */
+func q2mysql(userId string, tweetTime string) (response string) {
+	var tweetId uint64
+	//Find tweet_id for given userid and tweettime
+	rows, err := db.Query("SELECT id FROM tweets WHERE userid='" + userId + "' and created_at='" + tweetTime + "' ORDER BY id;")
+
 	if err != nil {
-		log.Print(err)	
-		response= err.Error()	
-	}else{	
+		log.Print(err)
+		response = err.Error()
+	} else {
 		//Grab the data from the  query
-		for rows.Next(){
+		for rows.Next() {
 			err = rows.Scan(&tweetId)
 			if err != nil {
-				response += err.Error()			
-			}else{//no error, convert the tweet_id into a string and concat to resp				
-				response += (strconv.FormatUint(tweetId,10)+"\n")
+				response += err.Error()
+			} else { //no error, convert the tweet_id into a string and concat to resp
+				response += (strconv.FormatUint(tweetId, 10) + "\n")
 			}
 		}
 		//Catch lingering errors
 		if err := rows.Err(); err != nil {
-            	log.Print(err)	
-    		}			
-	}	
+			log.Print(err)
+		}
+	}
 	return response
 }
 
 /*
 * Implementation for Q2 HBase backend
-*/
- func q2hbase(userId string, tweetTime string) (response string){	
- 	//Send GET request to HBase Stargate server
- 	res, err := http.Get(q2hbaseServer+"/tweets_q2/"+userId+tweetTime+",/about_tweet")
- 	log.Print(res.Request.URL.String())
-	if err != nil {
- 		log.Print(err) 
- 		response = err.Error()
- 		return response		
- 	}// No error, read the response into tweetIds
- 	tweetIds, err := ioutil.ReadAll(res.Body)
- 	res.Body.Close()
+ */
+func q2hbase(userId string, tweetTime string) (response string) {
+	//Send GET request to HBase Stargate server
+	res, err := http.Get(q2hbaseServer + "/tweets_q2/" + userId + tweetTime + ",/about_tweet")
+	log.Print(res.Request.URL.String())
 	if err != nil {
 		log.Print(err)
 		response = err.Error()
 		return response
-	}// No error, split the tweetIds on ";" and concatenate to response
+	} // No error, read the response into tweetIds
+	tweetIds, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		log.Print(err)
+		response = err.Error()
+		return response
+	} // No error, split the tweetIds on ";" and concatenate to response
 	results := strings.Split(string(tweetIds), ";")
-	for _, id := range results{
-		response += (strings.TrimSpace(id)+"\n")
+	for _, id := range results {
+		response += (strings.TrimSpace(id) + "\n")
 	}
 	return response
 }
 
-func q3mysql(userId string) (response string){
-	var srcId uint64	
-	rows, err := db.Query("SELECT src_uid FROM retweets WHERE target_uid='"+userId+"' ORDER BY src_uid;")	
-	
+func q3mysql(userId string) (response string) {
+	var srcId uint64
+	rows, err := db.Query("SELECT src_uid FROM retweets WHERE target_uid='" + userId + "' ORDER BY src_uid;")
+
 	if err != nil {
-		log.Print(err)	
-		response="Error with MySQL Query for"+userId
-	}else{	
+		log.Print(err)
+		response = "Error with MySQL Query for" + userId
+	} else {
 		//Grab the data from the  query
-		for rows.Next(){
+		for rows.Next() {
 			err = rows.Scan(&srcId)
 			if err != nil {
-				log.Print(err)				
-			}else{//no error, convert the tweet_id into a string and concat to resp				
-				response += (strconv.FormatUint(srcId,10)+"\n")
+				log.Print(err)
+			} else { //no error, convert the tweet_id into a string and concat to resp
+				response += (strconv.FormatUint(srcId, 10) + "\n")
 			}
 		}
 		//Catch lingering errors
 		if err := rows.Err(); err != nil {
-            log.Print(err)	
-    	}			
-	}	
+			log.Print(err)
+		}
+	}
 	return response
 }
 
-func q3hbase(userId string) (response string){
+func q3hbase(userId string) (response string) {
 	//Send GET request to HBase Stargate server
- 	res, err := http.Get(q3hbaseServer+"/tweets_q3/"+userId+",/about_tweet")
+	res, err := http.Get(q3hbaseServer + "/tweets_q3/" + userId + ",/about_tweet")
 
 	if err != nil {
- 		log.Print(err) 
- 		return err.Error() 			
- 	}// No error, read the response into tweetIds
- 	userIds, err := ioutil.ReadAll(res.Body)
- 	res.Body.Close()
+		log.Print(err)
+		return err.Error()
+	} // No error, read the response into tweetIds
+	userIds, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		log.Print(err)
 		response = err.Error()
 		return response
-	}// No error, split the tweetIds on ";" and concatenate to response
+	} // No error, split the tweetIds on ";" and concatenate to response
 	results := strings.Split(string(userIds), ";")
-	for _, id := range results{
-		response += (strings.TrimSpace(id)+"\n")
+	for _, id := range results {
+		response += (strings.TrimSpace(id) + "\n")
 	}
 	return response
 }
