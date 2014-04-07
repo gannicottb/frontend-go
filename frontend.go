@@ -10,6 +10,7 @@ import(
  "strconv"
  "strings"
  "io/ioutil" 
+ "os"
 )
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
@@ -20,9 +21,10 @@ import(
 //1003274923
 //1005208489
 //1005468367
-var dsn = "cloud9:gradproject@tcp(ec2-174-129-143-212.compute-1.amazonaws.com:3306)/TWEET_DB?parseTime=true"
-var hbaseServer = "http://ec2-54-85-193-234.compute-1.amazonaws.com:8080"
 
+var dsnFront = "cloud9:gradproject@tcp("
+var dsnBack = ":3306)/TWEET_DB?parseTime=true"
+var q2hbaseServer, q3hbaseServer string
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
@@ -73,6 +75,7 @@ func q3(w http.ResponseWriter, r *http.Request){
 func main(){
 	fmt.Println("Frontend starting using "+backend()+" for the backend...")
 	if mysql {
+		dsn := dsnFront + os.Getenv(MYSQL_SERVER)+dsnBack 
 		var err error
 		db, err = sql.Open("mysql", dsn);
 		if err != nil {
@@ -83,6 +86,9 @@ func main(){
 		}else{
 			fmt.Println("Database open!")
 		}	
+	}else{
+		q2hbaseServer = os.Getenv(Q2HBASE_SERVER)+":8080"
+		q3hbaseServer = os.Getenv(Q3HBASE_SERVER)+":8080"
 	}
   	http.HandleFunc("/q1", q1)
 	http.HandleFunc("/q2", q2)
@@ -121,8 +127,8 @@ func q2mysql(userId string, tweetTime string) (response string){
 		}
 		//Catch lingering errors
 		if err := rows.Err(); err != nil {
-            log.Print(err)	
-    	}			
+            		log.Print(err)	
+    		}			
 	}	
 	return response
 }
@@ -132,7 +138,7 @@ func q2mysql(userId string, tweetTime string) (response string){
 */
  func q2hbase(userId string, tweetTime string) (response string){	
  	//Send GET request to HBase Stargate server
- 	res, err := http.Get(hbaseServer+"/tweets_q2/"+userId+tweetTime+",/about_tweet")
+ 	res, err := http.Get(q2hbaseServer+"/tweets_q2/"+userId+tweetTime+",/about_tweet")
 
 	if err != nil {
  		log.Print(err) 
@@ -180,7 +186,7 @@ func q3mysql(userId string) (response string){
 
 func q3hbase(userId string) (response string){
 	//Send GET request to HBase Stargate server
- 	res, err := http.Get(hbaseServer+"/tweets_q3/"+userId+"/about_tweet:retweets_userID")
+ 	res, err := http.Get(q3hbaseServer+"/tweets_q3/"+userId+",/about_tweet:retweets_userID")
 
 	if err != nil {
  		log.Print(err) 
