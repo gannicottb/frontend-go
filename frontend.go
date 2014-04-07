@@ -12,6 +12,7 @@ import(
  "strings"
  "io/ioutil" 
  "os"
+ "runtime"
 )
 //Test Query for q2:
 //http://ec2-54-85-165-64.compute-1.amazonaws.com:8080/q2?userid=422&tweet_time=2014-02-03%2000:40:09
@@ -34,9 +35,12 @@ var mysql = false
 //???????????????????????????
 
 func q1(w http.ResponseWriter, r *http.Request){	
-	timeNow := time.Now().Format(layout)	
-  fmt.Fprintf(w, TEAM_ID+","+AWS_ACCOUNT_ID+","+timeNow)
-  fmt.Println("Q1 HEARTBEAT at "+timeNow)
+	//timeNow := time.Now().Format(layout)
+	result := TEAM_ID+","+AWS_ACCOUNT_ID+","+time.Now().Format(layout)
+	w.Header().Set("Content-Type", "text/plain")
+    w.Header().Set("Content-Length", strconv.Itoa(len(result)))	
+  	fmt.Fprintf(w, result)
+  	//fmt.Println("Q1 HEARTBEAT at "+timeNow)
 }
 
 func q2(w http.ResponseWriter, r *http.Request){
@@ -76,6 +80,7 @@ func q3(w http.ResponseWriter, r *http.Request){
 * The server attaches handlers and listens for REST requests on port 80
 */
 func main(){
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	q2hbaseVar := os.Getenv("Q2HBASE_SERVER")
 	q3hbaseVar := os.Getenv("Q3HBASE_SERVER")
 	mysqlVar := os.Getenv("MYSQL_SERVER")
