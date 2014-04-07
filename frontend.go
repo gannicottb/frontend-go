@@ -29,7 +29,7 @@ var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 var db *sql.DB 
 const layout = "2006-01-02 15:04:05"
 //WHICH BACKEND AM I USING???
-const mysql = true
+var mysql = false
 //???????????????????????????
 
 func q1(w http.ResponseWriter, r *http.Request){	
@@ -73,9 +73,16 @@ func q3(w http.ResponseWriter, r *http.Request){
 * The server attaches handlers and listens for REST requests on port 80
 */
 func main(){
+	q2hbaseVar := os.Getenv("Q2HBASE_SERVER")
+	q3hbaseVar := os.Getenv("Q3HBASE_SERVER")
+	mysqlVar := os.Getenv("MYSQL_SERVER")
+	if mysqlVar != ""{
+		mysql = true
+	}
+	
 	fmt.Println("Frontend starting using "+backend()+" for the backend...")
 	if mysql {
-		dsn := dsnFront + os.Getenv(MYSQL_SERVER)+dsnBack 
+		dsn := dsnFront+mysqlVar+dsnBack 
 		var err error
 		db, err = sql.Open("mysql", dsn);
 		if err != nil {
@@ -87,8 +94,8 @@ func main(){
 			fmt.Println("Database open!")
 		}	
 	}else{
-		q2hbaseServer = os.Getenv(Q2HBASE_SERVER)+":8080"
-		q3hbaseServer = os.Getenv(Q3HBASE_SERVER)+":8080"
+		q2hbaseServer = "http://"+q2hbaseVar+":8080"
+		q3hbaseServer = "http://"+q3hbaseVar+":8080"
 	}
   	http.HandleFunc("/q1", q1)
 	http.HandleFunc("/q2", q2)
@@ -186,7 +193,7 @@ func q3mysql(userId string) (response string){
 
 func q3hbase(userId string) (response string){
 	//Send GET request to HBase Stargate server
- 	res, err := http.Get(q3hbaseServer+"/tweets_q3/"+userId+",/about_tweet:retweets_userID")
+ 	res, err := http.Get(q3hbaseServer+"/tweets_q3/"+userId+",/about_tweet")
 
 	if err != nil {
  		log.Print(err) 
