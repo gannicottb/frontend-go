@@ -67,7 +67,7 @@ func q3(w http.ResponseWriter, r *http.Request){
 		response += q3hbase(userId)
 	}			
 	fmt.Fprintf(w, response)
-	fmt.Println("Q3 REQUEST:"+response)
+	fmt.Println("Q3 RESPONSE:"+response)
 }
 /*
 * The server attaches handlers and listens for REST requests on port 80
