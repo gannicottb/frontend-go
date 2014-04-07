@@ -42,7 +42,7 @@ func q2(w http.ResponseWriter, r *http.Request){
 	//Extract values from URL
 	values := r.URL.Query()
 	userId := values["userid"][0]
-	tweetTime := values["tweet_time"][0]
+	tweetTime := URL.QueryUnescape(values["tweet_time"][0])
 	fmt.Println("Q2 REQUEST: with userid="+userId+", tweet_time="+tweetTime)	
 	//Begin response
 	response := TEAM_ID+","+AWS_ACCOUNT_ID+"\n"	
@@ -53,8 +53,7 @@ func q2(w http.ResponseWriter, r *http.Request){
 	}	
 	//Send response
 	fmt.Fprintf(w, response)
-	fmt.Println("Q2 RESPONSE:"+response)//Print to console what we're returning
-	
+	fmt.Println("Q2 RESPONSE:"+response)	
 }
 
 func q3(w http.ResponseWriter, r *http.Request){
@@ -127,21 +126,21 @@ func q2mysql(userId string, tweetTime string) (response string){
 		for rows.Next(){
 			err = rows.Scan(&tweetId)
 			if err != nil {
-				log.Print(err)				
+				response += err.Error()			
 			}else{//no error, convert the tweet_id into a string and concat to resp				
 				response += (strconv.FormatUint(tweetId,10)+"\n")
 			}
 		}
 		//Catch lingering errors
 		if err := rows.Err(); err != nil {
-            		log.Print(err)	
+            	log.Print(err)	
     		}			
 	}	
 	return response
 }
 
 /*
-* Implementation for Q2 sHBase backend
+* Implementation for Q2 HBase backend
 */
  func q2hbase(userId string, tweetTime string) (response string){	
  	//Send GET request to HBase Stargate server
