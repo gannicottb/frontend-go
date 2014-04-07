@@ -121,7 +121,7 @@ func q2mysql(userId string, tweetTime string) (response string){
 	
 	if err != nil {
 		log.Print(err)	
-		response="Error with MySQL Query for"+userId+" and "+tweetTime	
+		response= err.Error()	
 	}else{	
 		//Grab the data from the  query
 		for rows.Next(){
@@ -149,19 +149,19 @@ func q2mysql(userId string, tweetTime string) (response string){
 
 	if err != nil {
  		log.Print(err) 
- 		response = "Error with HBase GET request for "+userId+" and "+tweetTime
+ 		response = err.Error()
  		return response		
  	}// No error, read the response into tweetIds
  	tweetIds, err := ioutil.ReadAll(res.Body)
  	res.Body.Close()
 	if err != nil {
 		log.Print(err)
-		response = "Error with reading HBase response for "+userId+" and "+tweetTime
+		response = err.Error()
 		return response
 	}// No error, split the tweetIds on ";" and concatenate to response
 	results := strings.Split(string(tweetIds), ";")
 	for _, id := range results{
-		response += (id+"\n")
+		response += (strings.TrimSpace(id)+"\n")
 	}
 	return response
 }
@@ -197,18 +197,18 @@ func q3hbase(userId string) (response string){
 
 	if err != nil {
  		log.Print(err) 
- 		return "Error with HBase GET request for "+userId 			
+ 		return err.Error() 			
  	}// No error, read the response into tweetIds
  	userIds, err := ioutil.ReadAll(res.Body)
  	res.Body.Close()
 	if err != nil {
 		log.Print(err)
-		response = "Error with reading HBase response for "+userId
+		response = err.Error()
 		return response
 	}// No error, split the tweetIds on ";" and concatenate to response
 	results := strings.Split(string(userIds), ";")
 	for _, id := range results{
-		response += (id+"\n")
+		response += (strings.TrimSpace(id)+"\n")
 	}
 	return response
 }
