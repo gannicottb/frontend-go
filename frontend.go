@@ -9,11 +9,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+	"flag"
 )
 
 //Test Query for q2:
@@ -30,17 +30,17 @@ var dsnFront = "cloud9:gradproject@tcp("
 var dsnBack = ":3306)/TWEET_DB?parseTime=true"
 var q2hbaseServer, q3hbaseServer string
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
-var db *sql.DB
+
+var shards [10]*sql.DB
 var c *cache.Cache
 
 const CACHE_EXPIRATION = 10
 const CACHE_PURGE_INTERVAL = 60
 const layout = "2006-01-02 15:04:05"
 
-//WHICH BACKEND AM I USING???
-var mysql = false
+var mysql bool
 
-//???????????????????????????
+
 
 func q1(w http.ResponseWriter, r *http.Request) {
 	result := TEAM_ID + "," + AWS_ACCOUNT_ID + "," + time.Now().Format(layout)
@@ -111,40 +111,48 @@ func q3(w http.ResponseWriter, r *http.Request) {
 /*
 * The server attaches handlers and listens for REST requests on port 80
  */
-func main() {
+func main() {		
+	var err error
+	//Grab server addresses from command line args	
+	backendPtr := flag.String("b", "default", "either mysql or hbase")
+    flag.Parse()
+    if *backendPtr == "mysql"{
+        mysql = true       
+        for s := range shards{
+        	//Create the dsn with the shard IP from the command line args
+			dsn := dsnFront + flag.Args()[s] + dsnBack			
+			//Open an MySQL connection to the shard
+			shards[s], err = sql.Open("mysql", dsn)
+			if err != nil {
+				log.Fatal(err) //Couldn't open the shard database
+			}
+			if err = shards[s].Ping(); err != nil {
+				log.Fatal(err) //Couldn't ping the shard database
+			} else {
+				fmt.Println("Shard "+strconv.Itoa(s)+" open!") //Ok, this shard is good to go
+			}
+		}
+    }else if *backendPtr == "hbase"{
+        mysql = false        
+        //Build the Stargate server addresses from supplied addresses
+        q2hbaseServer = "http://" + flag.Args()[0] + ":8080"
+		q3hbaseServer = "http://" + flag.Args()[1] + ":8080"
+		fmt.Println("Q2 and Q3 hbase servers registered!")
+    }else{
+        log.Fatal("No backend selected. Run the server with -b=<to something>")
+    }
+
 	//Use as many cores as Go can find on the machine
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	//Create a cache with a 10 minute expiration date that purges expired items every 60 seconds
 	c = cache.New(CACHE_EXPIRATION*time.Minute, CACHE_PURGE_INTERVAL*time.Second)
-	//Grab server addresses from environment variables
-	q2hbaseVar := os.Getenv("Q2HBASE_SERVER")
-	q3hbaseVar := os.Getenv("Q3HBASE_SERVER")
-	mysqlVar := os.Getenv("MYSQL_SERVER")
-	if mysqlVar != "" {
-		mysql = true
-	}
-
-	fmt.Println("Frontend starting using " + backend() + " for the backend...")
-	if mysql {
-		dsn := dsnFront + mysqlVar + dsnBack
-		var err error
-		db, err = sql.Open("mysql", dsn)
-		if err != nil {
-			log.Fatal(err) //Couldn't open the database
-		}
-		if err = db.Ping(); err != nil {
-			log.Fatal(err) //Couldn't ping the database
-		} else {
-			fmt.Println("Database open!") //Ok, good to go
-		}
-	} else {
-		q2hbaseServer = "http://" + q2hbaseVar + ":8080"
-		q3hbaseServer = "http://" + q3hbaseVar + ":8080"
-		fmt.Println("Q2 and Q3 hbase servers registered!")
-	}
+	
+	//Attach handlers
 	http.HandleFunc("/q1", q1)
 	http.HandleFunc("/q2", q2)
 	http.HandleFunc("/q3", q3)
+	fmt.Println("Frontend starting using " + backend() + " for the backend...")
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
@@ -161,8 +169,11 @@ func backend() (str string) {
  */
 func q2mysql(userId string, tweetTime string) (response string) {
 	var tweetId uint64
+	//Decide which shard to query
+	s, err := strconv.ParseUint(userId, 10, 64)
+	s = s % 10
 	//Find tweet_id for given userid and tweettime
-	rows, err := db.Query("SELECT id FROM tweets WHERE userid='" + userId + "' and created_at='" + tweetTime + "' ORDER BY id;")
+	rows, err := shards[s].Query("SELECT id FROM tweets WHERE userid='" + userId + "' and created_at='" + tweetTime + "' ORDER BY id;")
 
 	if err != nil {
 		log.Print(err)
@@ -213,7 +224,10 @@ func q2hbase(userId string, tweetTime string) (response string) {
 
 func q3mysql(userId string) (response string) {
 	var srcId uint64
-	rows, err := db.Query("SELECT src_uid FROM retweets WHERE target_uid='" + userId + "' ORDER BY src_uid;")
+	//Decide which shard to query
+	s, err := strconv.ParseUint(userId, 10, 64)
+	s = s % 10
+	rows, err := shards[s].Query("SELECT src_uid FROM retweets WHERE target_uid='" + userId + "' ORDER BY src_uid;")
 
 	if err != nil {
 		log.Print(err)
