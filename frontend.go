@@ -173,7 +173,7 @@ func q2mysql(userId string, tweetTime string) (response string) {
 	s, err := strconv.ParseUint(userId, 10, 64)
 	s = s % 10
 	//Find tweet_id for given userid and tweettime
-	rows, err := shards[s].Query("SELECT id FROM tweets WHERE userid='" + userId + "' and created_at='" + tweetTime + "' ORDER BY id;")
+	rows, err := shards[s].Query("SELECT tid FROM tweets WHERE userid='" + userId + "' and created_at='" + tweetTime + "' ORDER BY tid;")
 
 	if err != nil {
 		log.Print(err)
