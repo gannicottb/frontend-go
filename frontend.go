@@ -40,6 +40,7 @@ const layout = "2006-01-02 15:04:05"
 
 var mysql bool
 var debug bool
+var caching bool
 
 
 func q1(w http.ResponseWriter, r *http.Request) {
@@ -62,18 +63,18 @@ func q2(w http.ResponseWriter, r *http.Request) {
 	if debug{fmt.Println("Q2 REQUEST: with userid=" + userId + ", tweet_time=" + tweetTime)}
 
 	//Check the cache to see if we already have the response
-	result, found := c.Get(userId + tweetTime)
-	if found { // Cache hit! Use cached value
-		response = result.(string)
-	} else { // Cache miss! Query as usual and then cache
+	// result, found := c.Get(userId + tweetTime)
+	// if found { // Cache hit! Use cached value
+	// 	response = result.(string)
+	// } else { // Cache miss! Query as usual and then cache
 		response = TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"
 		if mysql {
 			response += q2mysql(userId, tweetTime)
 		} else {
 			response += q2hbase(userId, tweetTime)
 		}
-		c.Set(userId+tweetTime, response, 0)
-	}
+	// 	c.Set(userId+tweetTime, response, 0)
+	// }
 
 	//Send response
 	w.Header().Set("Content-Type", "text/plain")
@@ -89,18 +90,18 @@ func q3(w http.ResponseWriter, r *http.Request) {
 	if debug{fmt.Println("Q3 REQUEST: with userid=" + userId)}
 
 	//Check the cache to see if we already have the response
-	result, found := c.Get(userId)
-	if found { //Cache hit! Use cached value
-		response = result.(string)
-	} else { //Cache miss! Query as usual and then cache
+	//result, found := c.Get(userId)
+	//if found { //Cache hit! Use cached value
+	//	response = result.(string)
+	//} else { //Cache miss! Query as usual and then cache
 		response = TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"
 		if mysql {
 			response += q3mysql(userId)
 		} else {
 			response += q3hbase(userId)
 		}
-		c.Set(userId, response, 0)
-	}
+	//	c.Set(userId, response, 0)
+	//}
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
@@ -116,8 +117,10 @@ func main() {
 	//Grab server addresses from command line args	
 	debugPtr := flag.Bool("debug", false, "Turn console output on or off")
 	backendPtr := flag.String("b", "default", "either mysql or hbase")	
+	cachingPtr := flag.Bool("caching", false, "Turn caching on or off")
     flag.Parse()
     debug = *debugPtr
+    caching = *cachingPtr
     if *backendPtr == "mysql"{
         mysql = true       
         for s := range shards{
