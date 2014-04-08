@@ -31,7 +31,7 @@ var dsnBack = ":3306)/TWEET_DB?parseTime=true"
 var q2hbaseServer, q3hbaseServer string
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 
-var shards [10]*sql.DB
+var shards []*sql.DB
 var c *cache.Cache
 
 const CACHE_EXPIRATION = 10
@@ -227,7 +227,7 @@ func q3mysql(userId string) (response string) {
 	//Decide which shard to query
 	s, err := strconv.ParseUint(userId, 10, 64)
 	s = s % 10
-	rows, err := shards[s].Query("SELECT src_uid FROM retweets WHERE target_uid='" + userId + "' ORDER BY src_uid;")
+	rows, err := shards[s].Query("SELECT src_uid FROM retweets WHERE target_uid='" + userId + "';")
 
 	if err != nil {
 		log.Print(err)
