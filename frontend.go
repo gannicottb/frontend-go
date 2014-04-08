@@ -39,7 +39,7 @@ const CACHE_PURGE_INTERVAL = 60
 const layout = "2006-01-02 15:04:05"
 
 var mysql bool
-
+var debug bool
 
 
 func q1(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +47,7 @@ func q1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Length", strconv.Itoa(len(result)))
 	fmt.Fprintf(w, result)
-	fmt.Println("Q1 HEARTBEAT " + result)
+	if debug{fmt.Println("Q1 HEARTBEAT " + result)}
 }
 
 func q2(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +59,7 @@ func q2(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print(err)
 	}
-	fmt.Println("Q2 REQUEST: with userid=" + userId + ", tweet_time=" + tweetTime)
+	if debug{fmt.Println("Q2 REQUEST: with userid=" + userId + ", tweet_time=" + tweetTime)}
 
 	//Check the cache to see if we already have the response
 	result, found := c.Get(userId + tweetTime)
@@ -79,14 +79,14 @@ func q2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 	fmt.Fprintf(w, response)
-	fmt.Println("Q2 RESPONSE:" + response)
+	if debug {fmt.Println("Q2 RESPONSE:" + response)}
 }
 
 func q3(w http.ResponseWriter, r *http.Request) {
 	var response string
 	//Extract userId from the request
 	userId := r.URL.Query()["userid"][0]
-	fmt.Println("Q3 REQUEST: with userid=" + userId)
+	if debug{fmt.Println("Q3 REQUEST: with userid=" + userId)}
 
 	//Check the cache to see if we already have the response
 	result, found := c.Get(userId)
@@ -105,7 +105,7 @@ func q3(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 	fmt.Fprintf(w, response)
-	fmt.Println("Q3 RESPONSE:" + response)
+	if debug {fmt.Println("Q3 RESPONSE:" + response)}
 }
 
 /*
@@ -114,8 +114,10 @@ func q3(w http.ResponseWriter, r *http.Request) {
 func main() {		
 	var err error
 	//Grab server addresses from command line args	
-	backendPtr := flag.String("b", "default", "either mysql or hbase")
+	debugPtr := flag.String("debug", false, "Turn console output on or off")
+	backendPtr := flag.String("b", "default", "either mysql or hbase")	
     flag.Parse()
+    debug = *debugPtr
     if *backendPtr == "mysql"{
         mysql = true       
         for s := range shards{
@@ -139,7 +141,7 @@ func main() {
 		q3hbaseServer = "http://" + flag.Args()[1] + ":8080"
 		fmt.Println("Q2 and Q3 hbase servers registered!")
     }else{
-        log.Fatal("No backend selected. Run the server with -b=<to something>")
+        log.Fatal("No backend selected. Run the server with -b=(mysql || hbase)")
     }
 
 	//Use as many cores as Go can find on the machine
