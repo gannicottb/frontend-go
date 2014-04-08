@@ -114,7 +114,7 @@ func q3(w http.ResponseWriter, r *http.Request) {
 func main() {		
 	var err error
 	//Grab server addresses from command line args	
-	debugPtr := flag.String("debug", false, "Turn console output on or off")
+	debugPtr := flag.Bool("debug", false, "Turn console output on or off")
 	backendPtr := flag.String("b", "default", "either mysql or hbase")	
     flag.Parse()
     debug = *debugPtr
