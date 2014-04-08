@@ -31,7 +31,7 @@ var dsnBack = ":3306)/TWEET_DB?parseTime=true"
 var q2hbaseServer, q3hbaseServer string
 var TEAM_ID, AWS_ACCOUNT_ID = "cloud9", "4897-8874-0242"
 
-var shards []*sql.DB
+var shards [10]*sql.DB
 var c *cache.Cache
 
 const CACHE_EXPIRATION = 10
