@@ -55,6 +55,7 @@ func q1(w http.ResponseWriter, r *http.Request) {
 
 func q2(w http.ResponseWriter, r *http.Request) {
 	var buffer bytes.Buffer
+	var skip = false
 	//Extract values from URL
 	values := r.URL.Query()
 	userId := values["userid"][0]
@@ -64,19 +65,24 @@ func q2(w http.ResponseWriter, r *http.Request) {
 	}
 	if debug{fmt.Println("Q2 REQUEST: with userid=" + userId + ", tweet_time=" + tweetTime)}
 
+	if caching {
 	//Check the cache to see if we already have the response
-	// result, found := c.Get(userId + tweetTime)
-	// if found { // Cache hit! Use cached value
-	// 	response = result.(string)
-	// } else { // Cache miss! Query as usual and then cache
+		result, found := c.Get(userId + tweetTime)
+		if found { // Cache hit! Use cached value
+			buffer.WriteString(result.(string))
+			skip = true
+		}
+	}
+	// Cache miss or we're not caching! Query as usual and then cache
+	if skip == false {
 		buffer.Write([]byte( TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"))
 		if mysql {
 			q2mysql(userId, tweetTime, &buffer)
 		} else {
 			q2hbase(userId, tweetTime, &buffer)
 		}
-	// 	c.Set(userId+tweetTime, response, 0)
-	// }
+		if caching {c.Set(userId+tweetTime, response, 0)}	
+	}
 
 	//Send response
 	w.Header().Set("Content-Type", "text/plain")		
@@ -87,23 +93,28 @@ func q2(w http.ResponseWriter, r *http.Request) {
 
 func q3(w http.ResponseWriter, r *http.Request) {
 	var buffer bytes.Buffer
+	var skip = false
 	//Extract userId from the request
 	userId := r.URL.Query()["userid"][0]
 	if debug{fmt.Println("Q3 REQUEST: with userid=" + userId)}
-
+	if caching {
 	//Check the cache to see if we already have the response
-	//result, found := c.Get(userId)
-	//if found { //Cache hit! Use cached value
-	//	response = result.(string)
-	//} else { //Cache miss! Query as usual and then cache
+		result, found := c.Get(userId)
+		if found { // Cache hit! Use cached value
+			buffer.WriteString(result.(string))			
+			skip = true
+		}
+	}
+	// Cache miss or we're not caching! Query as usual and then cache
+	if skip == false {
 		buffer.Write([]byte( TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"))
 		if mysql {
-			q3mysql(userId, &buffer)
+			q3mysql(userId, tweetTime, &buffer)
 		} else {
-			q3hbase(userId, &buffer)
+			q3hbase(userId, tweetTime, &buffer)
 		}
-	//	c.Set(userId, response, 0)
-	//}
+		if caching {c.Set(userId+tweetTime, response, 0)}	
+	}
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Length", strconv.Itoa(buffer.Len()))
