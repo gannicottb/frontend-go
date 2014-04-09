@@ -73,7 +73,7 @@ func q2(w http.ResponseWriter, r *http.Request) {
 		if mysql {
 			q2mysql(userId, tweetTime, &buffer)
 		} else {
-			//q2hbase(userId, tweetTime, &buffer)
+			q2hbase(userId, tweetTime, &buffer)
 		}
 	// 	c.Set(userId+tweetTime, response, 0)
 	// }
@@ -98,9 +98,9 @@ func q3(w http.ResponseWriter, r *http.Request) {
 	//} else { //Cache miss! Query as usual and then cache
 		buffer.Write([]byte( TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"))
 		if mysql {
-			//q3mysql(userId, &buffer)
+			q3mysql(userId, &buffer)
 		} else {
-			//q3hbase(userId, &buffer)
+			q3hbase(userId, &buffer)
 		}
 	//	c.Set(userId, response, 0)
 	//}
@@ -270,6 +270,7 @@ func q3hbase(userId string, buffer *bytes.Buffer) {
 		return
 	} // No error, split the tweetIds on ";" and concatenate to response
 	results := strings.Split(string(userIds), ";")
+	fmt.Println(results)
 	for _, id := range results {
 		buffer.WriteString(strings.TrimSpace(id) + "\n")
 	}	
