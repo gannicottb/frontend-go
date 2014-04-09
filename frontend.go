@@ -269,8 +269,7 @@ func q3hbase(userId string, buffer *bytes.Buffer) {
 		buffer.WriteString(err.Error())
 		return
 	} // No error, split the tweetIds on ";" and concatenate to response
-	results := strings.Split(string(userIds), ";")
-	fmt.Println(results)
+	results := strings.Split(string(userIds), ";")	
 	for _, id := range results {
 		buffer.WriteString(strings.TrimSpace(id) + "\n")
 	}	
