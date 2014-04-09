@@ -81,7 +81,7 @@ func q2(w http.ResponseWriter, r *http.Request) {
 		} else {
 			q2hbase(userId, tweetTime, &buffer)
 		}
-		if caching {c.Set(userId+tweetTime, response, 0)}	
+		if caching {c.Set(userId+tweetTime, buffer.String(), 0)}	
 	}
 
 	//Send response
@@ -109,11 +109,11 @@ func q3(w http.ResponseWriter, r *http.Request) {
 	if skip == false {
 		buffer.Write([]byte( TEAM_ID + "," + AWS_ACCOUNT_ID + "\n"))
 		if mysql {
-			q3mysql(userId, tweetTime, &buffer)
+			q3mysql(userId, &buffer)
 		} else {
-			q3hbase(userId, tweetTime, &buffer)
+			q3hbase(userId, &buffer)
 		}
-		if caching {c.Set(userId+tweetTime, response, 0)}	
+		if caching {c.Set(userId, buffer.String(), 0)}	
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
